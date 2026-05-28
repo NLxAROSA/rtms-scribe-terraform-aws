@@ -1,8 +1,8 @@
 # Real-Time Scribe Pipeline (design)
 
-An additive extension to this repo that replaces the worker's default `on_transcript_data` path with **rolling audio segments routed through [Zoom Scribe Fast Mode](https://developers.zoom.us/docs/ai-services/scribe/fast-mode/)**. Transcripts arrive continuously during the meeting (~one every few seconds) instead of only at meeting end.
+An additive extension to [this repo](https://github.com/zoom/rtms-terraform-aws) that replaces the worker's default `on_transcript_data` path with **rolling audio segments routed through [Zoom Scribe Fast Mode](https://developers.zoom.us/docs/ai-services/scribe/fast-mode/)**. Transcripts arrive continuously during the meeting (~one every few seconds) instead of only at meeting end.
 
-This document describes the architecture only — see the main [README](README.md) for the base infrastructure.
+This document describes the architecture only — see the main [README](https://github.com/zoom/rtms-terraform-aws/README.md) for the base infrastructure.
 
 ---
 
