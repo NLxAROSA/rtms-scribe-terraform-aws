@@ -1,6 +1,6 @@
 # Real-Time Scribe Pipeline (design)
 
-An additive extension to [this repo](https://github.com/zoom/rtms-terraform-aws) that replaces the worker's default `on_transcript_data` path with **rolling audio segments routed through [Zoom Scribe Fast Mode](https://developers.zoom.us/docs/ai-services/scribe/fast-mode/)**. Transcripts arrive continuously during the meeting (~one every few seconds) instead of only at meeting end.
+An additive extension to the [RTMS on AWS: Terraform Template](https://github.com/zoom/rtms-terraform-aws) that replaces the worker's default `on_transcript_data` path with **rolling audio segments routed through [Zoom Scribe Fast Mode](https://developers.zoom.us/docs/ai-services/scribe/fast-mode/)**. Transcripts arrive continuously during the meeting (~one every few seconds) instead of only at meeting end.
 
 This document describes the architecture only — see the main [README](https://github.com/zoom/rtms-terraform-aws/README.md) for the base infrastructure.
 
@@ -73,7 +73,7 @@ What stays unchanged: VPC, ALB, ECS, ACM, Route 53, CloudWatch dashboards/alarms
 
 - **Time-to-first-transcript** drops from "meeting length" → "~segment length + Scribe latency" (roughly 5–10 seconds at 5 s segments).
 - **Word boundaries at segment edges** can split a word or sentence — Scribe has no cross-segment context. Two mitigations: (a) accept it (typical for live captioning); (b) overlap segments by ~0.5 s and dedupe downstream. (a) is the simpler default.
-- **Fixed-window segmentation** is dumb but simple. No VAD; segments may start mid-word but at 5 s windows this is rare (most words are <0.5 s).
+- **Fixed-window segmentation** is not intelligent but simple. Segments may start mid-word but at 5 s windows this is rare (most words are <0.5 s).
 - **Spot reclaim drops only the in-flight segment's audio** (≤ N seconds), not the whole meeting.
 - **S3 PUT volume.** A 1 hr meeting at 5 s segments produces ~720 WAVs + ~720 JSONs. Storage is trivial (~115 MB of audio); PUT cost is ~$0.004 per meeting.
 - **Scribe API call volume.** ~720 calls per 1 hr meeting. Worth checking against per-account quotas before going wide.
@@ -107,10 +107,7 @@ aws s3 cp s3://<bucket>/transcripts/<uuid>/ ./out --recursive
 ls out/*.json | sort | xargs jq -r '.result.text_display' | tr '\n' ' '
 ```
 
-For consumers that want a single rolled-up artifact, add a small "stitcher" — either a Lambda triggered by `meeting.rtms_stopped` that reads all segments and writes `transcripts/<uuid>.jsonl`, or an S3 Event → Lambda that appends each segment to a running JSONL as it arrives.
+For consumers that want a single rolled-up artifact, add a small "stitcher" — either a Lambda triggered by `meeting.rtms_stopped` that reads all segments and writes `transcripts/<uuid>.jsonl`, or an S3 Event → Lambda that appends each segment to a running JSONL as it arrives. Alternatively, use [Zoom Scribe Batch Mode](https://developers.zoom.us/docs/ai-services/scribe/batch-mode/) or capture audio for the entire meeting and pass it into [Zoom Scribe Fast Mode](https://developers.zoom.us/docs/ai-services/scribe/fast-mode/).
 
 ---
-
-## Status
-
-Design only — not implemented in this repo yet. The hooks (one variable, one IAM expansion, one task-definition conditional, ~150 lines of worker code) are scoped but unmerged. The default `worker_image` is the pre-Scribe build; adopting this design requires rebuilding via `scripts/build-and-push-worker.sh` and pointing `worker_image` at the new ECR tag.
+More detailed info can be found in the base [RTMS on AWS: Terraform Template](https://github.com/zoom/rtms-terraform-aws) repo.
